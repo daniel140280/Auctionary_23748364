@@ -29,7 +29,7 @@ app.get('/', (req, res, next) => {
 
 // Other API endpoints: Links go here...
 // You can uncomment the below three lines as you implement the functionality - we'll discuss this structure in week three.
-// require('./app/routes/user.server.routes')(app);
+require('./app/routes/user.server.routes')(app);
 // require('./app/routes/core.server.routes')(app);
 // require('./app/routes/question.server.routes')(app);
 
