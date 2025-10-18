@@ -1,0 +1,9 @@
+{
+  "version": "1",
+  "name": "Auctionary APIs",
+  "type": "collection",
+  "ignore": [
+    "node_modules",
+    ".git"
+  ]
+}

@@ -1,0 +1,24 @@
+meta {
+  name: Create an account for a new user
+  type: http
+  seq: 1
+}
+
+post {
+  url: http://localhost:3333/users
+  body: json
+  auth: inherit
+}
+
+body:json {
+  {
+      "first_name":"Daniel",
+      "last_name": "Hall",
+      "email": "donnie@gmail.com",
+      "password": "querty123!"
+  }
+}
+
+settings {
+  encodeUrl: true
+}

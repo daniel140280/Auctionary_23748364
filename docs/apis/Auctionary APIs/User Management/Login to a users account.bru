@@ -1,0 +1,22 @@
+meta {
+  name: Login to a users account
+  type: http
+  seq: 3
+}
+
+post {
+  url: http://localhost:3333/login
+  body: json
+  auth: inherit
+}
+
+body:json {
+  {
+    "email": "daniel@gmail.com",
+    "password": "querty123!"
+  }
+}
+
+settings {
+  encodeUrl: true
+}
