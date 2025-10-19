@@ -13,7 +13,7 @@ const createUser = (first_name, last_name, email, password, callback) => {
     const params = [first_name, last_name, email, hash, salt];
 
     // insert user into database
-    db.run( insert, params, function(err) {
+    db.run(insert, params, function(err) {
         if (err) {
             callback(err, null);
         } else {
@@ -22,6 +22,7 @@ const createUser = (first_name, last_name, email, password, callback) => {
     });
 };
 
+//HELPER FUNCTIONS FOR USER AUTHENTICATION AND PROFILE RETRIEVAL
 //Fetches user by email from the database and accepts email or returns undefined.
 const getUserByEmail = (email, callback) => {
     const query = `SELECT * FROM users WHERE email = ?`;
@@ -29,6 +30,23 @@ const getUserByEmail = (email, callback) => {
         callback(err, row);
     });
 };
+
+//Get user_id from session token.
+const getIdFromToken = (token, callback) => {
+    if(!token) {
+        return callback(null, null); // Early verification to check a token is provided.
+    }
+    const query = `SELECT user_id FROM users WHERE session_token = ?`;
+    db.get(query, [token], (err, row) => {
+        if (err) {
+            return callback(err, null);
+        }
+        if (!row) {
+            return callback(null, null); // No user found with that token
+        }
+        callback(null, row.user_id);
+    });
+}
 
 //Used for checking login by password meets criteria of saved hash and salt.
 const verifyPassword = (storedHash, storedSalt, inputPassword) => {
@@ -60,8 +78,8 @@ const getUserProfileById = (user_id, callback) => {
         };
 
         // If user exists, fetch selling, bidding history and ended auctions user involved in.
-        const sellingQuery = 
-            `SELECT i.item_id, i.name, i.description, i.end_date, i.creator_id, u.first_name, u.last_name
+        const sellingQuery = `
+            SELECT i.item_id, i.name, i.description, i.end_date, i.creator_id, u.first_name, u.last_name
             FROM items i
             JOIN users u ON i.creator_id = u.user_id
             WHERE i.creator_id = ?;
@@ -73,8 +91,8 @@ const getUserProfileById = (user_id, callback) => {
             },
             // This is called when db.each() finishes looping all rows
             () => {
-                const biddingQuery = 
-                    `SELECT DISTINCT i.item_id, i.name, i.description, i.end_date, i.creator_id, u.first_name, u.last_name
+                const biddingQuery = `
+                    SELECT DISTINCT i.item_id, i.name, i.description, i.end_date, i.creator_id, u.first_name, u.last_name
                     FROM bids b
                     JOIN items i ON b.item_id = i.item_id
                     JOIN users u ON i.creator_id = u.user_id
@@ -133,5 +151,6 @@ module.exports = {
     verifyPassword,
     getUserProfileById,
     saveSessionToken,
-    clearSessionToken
+    clearSessionToken,
+    getIdFromToken
 };
