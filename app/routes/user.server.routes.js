@@ -8,19 +8,10 @@ module.exports = function(app) {
     app.route('/login')
         .post(users.loginUser);
     
-        app.route('/logout')
+    app.route('/logout')
         .post(users.logoutUser);
 
     app.route('/users/:user_id')
         .get(users.getUserProfile);
 
     };
-
-// const express = require('express');
-// const router = express.Router();
-// const usersController = require('./users.controllers');
-
-// // POST /users - Create a new user account
-// router.post('/', usersController.createUser);
-
-// module.exports = router;

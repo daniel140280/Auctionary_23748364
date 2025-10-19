@@ -31,7 +31,7 @@ const createUser = (req, res) => {
             return res.status(400).send({ error_message: "Cannot create user, email already in use" });
         }
 
-        // Assuming all checks pass, create new user.
+        // Assuming no error or existing user with that email, we create new user.
         userModel.createUser(first_name, last_name, email, password, (err, result) => {
             if (err) {
                 return res.status(500).send({ error_message: "Internal server error stopping user creation" });

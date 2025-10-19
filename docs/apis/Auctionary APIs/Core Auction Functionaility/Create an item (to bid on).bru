@@ -1,0 +1,29 @@
+meta {
+  name: Create an item (to bid on)
+  type: http
+  seq: 1
+}
+
+post {
+  url: http://localhost:3333/item
+  body: json
+  auth: inherit
+}
+
+headers {
+  x-authorization: 3f9610cca1533a6b45935167757f63a2
+}
+
+body:json {
+  {
+    "name": "Henry Hoover",
+    "description": "Barely used henry hoover - freshly emptied",
+    "starting_bid": 99.99,
+    "end_date": 18062024
+  }
+}
+
+settings {
+  encodeUrl: true
+  timeout: 0
+}
