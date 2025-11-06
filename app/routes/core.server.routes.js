@@ -1,4 +1,5 @@
 const core = require('../controllers/core.controller');
+const { checkAuthenticated } = require('../lib/auth');
 
 module.exports = function(app) {
 
