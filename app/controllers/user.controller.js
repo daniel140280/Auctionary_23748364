@@ -79,8 +79,10 @@ const getUserProfile = (req, res) => {
 // Schema validation for user login.
 const loginSchema = Joi.object({
     email: Joi.string().email().required(),
-    password: Joi.string().min(6).required()
-});
+    password: Joi.string().pattern(passwordRegex).required().messages({
+        'string.pattern.base': 'Password must be 8–16 characters and include uppercase, lowercase, number, and special character.'
+        })
+    });
 
 //Controller function for user login using their email and password
 const loginUser = (req, res) => {
