@@ -3,12 +3,16 @@ const Joi = require('joi'); //import Joi for schema validation.
 const userModel = require('../models/user.models'); //import the users model so the controller can check for existing users and create new ones on the database.
 const crypto = require('crypto'); //import crypto library for generating session tokens.
 
+const passwordRegex = /^(?=.*[a-z])(?=.*[A-Z])(?=.*\d)(?=.*[@$!%*?&])[A-Za-z\d@$!%*?&]{8,16}$/;
+
 // Schema validation for creating a user request body - if the body does not match this schema, return a 400 error.
 const userSchema = Joi.object({
     first_name: Joi.string().min(1).required(),
     last_name: Joi.string().min(1).required(),
     email: Joi.string().email().required(),
-    password: Joi.string().min(6).required()
+    password: Joi.string().pattern(passwordRegex).required().messages({
+        'string.pattern.base': 'Password must be 8–16 characters and include uppercase, lowercase, number, and special character.'
+    })
 });
 
 // Controller function that handles the incoming HTTP request (routes) to create a new user.
@@ -75,8 +79,10 @@ const getUserProfile = (req, res) => {
 // Schema validation for user login.
 const loginSchema = Joi.object({
     email: Joi.string().email().required(),
-    password: Joi.string().min(6).required()
-});
+    password: Joi.string().pattern(passwordRegex).required().messages({
+        'string.pattern.base': 'Password must be 8–16 characters and include uppercase, lowercase, number, and special character.'
+        })
+    });
 
 //Controller function for user login using their email and password
 const loginUser = (req, res) => {
