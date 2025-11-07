@@ -10,13 +10,19 @@ post {
   auth: inherit
 }
 
+headers {
+  X-Authorization:     const item_id = parseInt(req.params.item_id, 10);
+  
+}
+
 body:json {
   {
       "email": "daniel2@gmail.com",
-      "password": "querty123!"
+      "password": "Querty123!"
   }
 }
 
 settings {
   encodeUrl: true
+  timeout: 0
 }

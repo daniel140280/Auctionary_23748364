@@ -13,7 +13,7 @@ module.exports = function(app) {
         .get(core.getItemDetails);
         
     app.route('/item/:item_id/bid')
-        .post(core.bidOnItem)
+        .post(checkAuthenticated, core.bidOnItem)
         .get(core.bidHistory);
 
     };

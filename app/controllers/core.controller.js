@@ -5,18 +5,18 @@ const userModel = require('../models/user.models'); //import the user model as w
 
 //CONSIDER IF MOVE TO A HELPER CLASS TO CREATE SEPARATION OF CONCERNS
 //Helper function to verify session token of the user from the Header.
-const authenticateUser = (req, res, callback) => {
-    const token = req.headers['x-authorization'];
-    if(!token) {
-        return res.status(401).send({ error_message: "Missing session token" });
-    } 
-    userModel.getIdFromToken(token, (err, user_id) => {
-        if(err || !user_id) {
-            return res.status(401).send({ error_message: "Invalid or expired session token" });
-        } 
-        callback(user_id);
-    });
-}
+// const authenticateUser = (req, res, callback) => {
+//     const token = req.headers['x-authorization'];
+//     if(!token) {
+//         return res.status(401).send({ error_message: "Missing session token" });
+//     } 
+//     userModel.getIdFromToken(token, (err, user_id) => {
+//         if(err || !user_id) {
+//             return res.status(401).send({ error_message: "Invalid or expired session token" });
+//         } 
+//         callback(user_id);
+//     });
+// }
 
 //Create a new item for sale - requires user to be authenticated using session token.
 const createItem = (req, res) => {
@@ -35,6 +35,7 @@ const createItem = (req, res) => {
     }
 
     const { name, description, starting_bid, end_date } = value;
+    const user_id = req.user_id; //get user ID from authenticated request.
 
     //If validation passes, create the item.
     coreModel.createItem(user_id, name, description, starting_bid, end_date, (err, result) => {
@@ -65,13 +66,14 @@ const getItemDetails = (req, res) => {
 
 //Bid on an item for sale - requires user to be authenticated using session token.
 const bidOnItem = (req, res) => {
-    authenticateUser(req, res, (user_id) => {
+        const user_id = req.user_id;
         const item_id = parseInt(req.params.item_id, 10);
+
         if(isNaN(item_id)) {
             return res.status(400).send({ error_message: "Invalid item ID" });
         }
 
-        //Define schema for validating request body.
+        //Validate bid amount schema.
         const schema = Joi.object({
             amount: Joi.number().integer().positive().required()
         });
@@ -99,7 +101,6 @@ const bidOnItem = (req, res) => {
             }
             return res.status(201).send({ message: "Bid placed successfully" });
         });
-    });
 }
 
 //Retrieve bid history for a specific item.
