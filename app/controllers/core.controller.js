@@ -20,30 +20,28 @@ const authenticateUser = (req, res, callback) => {
 
 //Create a new item for sale - requires user to be authenticated using session token.
 const createItem = (req, res) => {
-    authenticateUser(req, res, (user_id) => {
-        //Define schema for validating request body.
-        const schema = Joi.object({
-            name: Joi.string().max(25).required(),
-            description: Joi.string().max(1000).required(),
-            starting_bid: Joi.number().integer().positive().required(),
-            end_date: Joi.number().integer().min(Math.floor(Date.now() / 1000) + 60).required() // at least 1 minute in the future
-        });
+    //Define schema for validating request body.
+    const schema = Joi.object({
+        name: Joi.string().max(25).required(),
+        description: Joi.string().max(1000).required(),
+        starting_bid: Joi.number().integer().positive().required(),
+        end_date: Joi.number().integer().min(Math.floor(Date.now() / 1000) + 60).required() // at least 1 minute in the future
+    });
 
-        //Validate request body against schema.
-        const { error, value } = schema.validate(req.body);
-        if(error) {
-            return res.status(400).send({ error_message: error.details[0].message });
+    //Validate request body against schema.
+    const { error, value } = schema.validate(req.body);
+    if(error) {
+        return res.status(400).send({ error_message: error.details[0].message });
+    }
+
+    const { name, description, starting_bid, end_date } = value;
+
+    //If validation passes, create the item.
+    coreModel.createItem(user_id, name, description, starting_bid, end_date, (err, result) => {
+        if(err) {
+            return res.status(500).send({ error_message: "Database error creating item for sale" });
         }
-
-        const { name, description, starting_bid, end_date } = value;
-
-        //If validation passes, create the item.
-        coreModel.createItem(user_id, name, description, starting_bid, end_date, (err, result) => {
-            if(err) {
-                return res.status(500).send({ error_message: "Database error creating item for sale" });
-            }
-            return res.status(201).send({ item_id: result.item_id });
-        });
+        return res.status(201).send({ item_id: result.item_id });
     });
 };
 

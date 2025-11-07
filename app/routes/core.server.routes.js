@@ -7,7 +7,7 @@ module.exports = function(app) {
         .get(core.itemSearch);
 
     app.route('/item')
-        .post(core.createItem);
+        .post(checkAuthenticated, core.createItem);
     
     app.route('/item/:item_id')
         .get(core.getItemDetails);
