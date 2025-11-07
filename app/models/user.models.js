@@ -5,12 +5,12 @@ const crypto = require('crypto'); //imports the crypto library used for making s
 //Inserts new user into the database - accepts user details and a callback function to run after DB operation completes.
 const createUser = (first_name, last_name, email, password, callback) => {
     //create salt and hash the password
-    const salt = crypto.randomBytes(16).toString('hex'); //generates random 16-byte salt, converts to hex string and stored to verify passwords later.
-    const hash = crypto.createHash('sha256').update(password + salt).digest('hex');//creates hex encoded hash through concatenation of the password and salt using magic!
+    const salt = crypto.randomBytes(64); //generates random 64-byte salt and stored to verify passwords later.
+    const hash = getHash(password, salt);//want to hash the salt - creating hex encoded hash through concatenation of the password and salt using magic!
     
     //define our SQL insert statement and parameters for injection to bind (preventing SQL injection)
     const insert = `INSERT INTO users (first_name, last_name, email, password, salt) VALUES (?, ?, ?, ?, ?)`;
-    const params = [first_name, last_name, email, hash, salt];
+    const params = [first_name, last_name, email, hash, salt.toString('hex')];
 
     // insert user into database
     db.run(insert, params, function(err) {
@@ -22,12 +22,31 @@ const createUser = (first_name, last_name, email, password, callback) => {
     });
 };
 
+//Function to generate a hash from password and salt - private helper function no need to export.
+const getHash = (password, salt) => {
+    return crypto.pbkdf2Sync(password, salt, 10000, 256, 'sha256').toString('hex');
+};
+
 //HELPER FUNCTIONS FOR USER AUTHENTICATION AND PROFILE RETRIEVAL
 //Fetches user by email from the database and accepts email or returns undefined.
 const getUserByEmail = (email, callback) => {
     const query = `SELECT * FROM users WHERE email = ?`;
     db.get(query, [email], (err, row) => {
         callback(err, row);
+    });
+};
+
+//Get session token from user id from the database.
+const getToken = (user_id, callback) => {
+    const query = `SELECT session_token FROM users WHERE user_id = ?`;
+    db.get(query, [user_id], (err, row) => {
+        if (err) {
+            return callback(err, null);
+        }
+        if (!row) {
+            return callback(null, null); // No user found with that ID
+        }
+        callback(null, row.session_token);
     });
 };
 
@@ -47,6 +66,26 @@ const getIdFromToken = (token, callback) => {
         callback(null, row.user_id);
     });
 }
+
+//Authenticate user by email and password.
+const authenticateUser = (email, password, callback) => {
+    const query = `SELECT user_id, password, salt FROM users WHERE email = ?`;
+
+    db.get(query, [email], (err, row) => {
+        if (err) { return callback(err); }
+        if (!row) { return callback(404); } // No user found with that email.
+
+        if (row.salt === null) { row.salt = ''; } // Handle case where salt is null (legacy accounts)
+
+        let salt = Buffer.from(row.salt, 'hex');
+
+        if (row.password === getHash(password, salt)) {
+            return callback(false, row.user_id); // Password matches
+        } else {
+            return callback(404); // Password does not match
+        }
+    });
+};
 
 //Used for checking login by password meets criteria of saved hash and salt.
 const verifyPassword = (storedHash, storedSalt, inputPassword) => {
@@ -129,10 +168,13 @@ const getUserProfileById = (user_id, callback) => {
 };
 
 // Save a new session token when logging in
-const saveSessionToken = (user_id, token, callback) => {
+const saveSessionToken = (user_id, callback) => {
+    let token = crypto.randomBytes(16).toString('hex'); //generate the session token.
+
     const query = `UPDATE users SET session_token = ? WHERE user_id = ?`;
+
     db.run(query, [token, user_id], function(err) {
-        callback(err);
+        callback(err, token); //return the session token to the controller.
     });
 };
 
@@ -150,7 +192,9 @@ module.exports = {
     getUserByEmail,
     verifyPassword,
     getUserProfileById,
+    getToken,
+    getIdFromToken,
+    authenticateUser,
     saveSessionToken,
-    clearSessionToken,
-    getIdFromToken
+    clearSessionToken
 };

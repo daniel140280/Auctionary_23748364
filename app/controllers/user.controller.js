@@ -94,35 +94,58 @@ const loginUser = (req, res) => {
 
     const { email, password } = value; //destructure validated values from the request body.
 
-    userModel.getUserByEmail(email, (err, user) => {
-        if (err) {
-            return res.status(500).send({ error_message: "Internal database error error" });
-        }
+    userModel.authenticateUser(email, password, (err, user_id) => {
+        if (err === 404) { return res.status(400).send({ error_message: "Invalid email or password supplied" }); }
 
-        if (!user) {
-            return res.status(400).send({ error_message: "Invalid email or password" });
-        }
+        if (err) { return res.status(500).send({ error_message: "Internal database error during authentication" }); }
 
-        if (!userModel.verifyPassword(user.password, user.salt, password)) {
-            return res.status(400).send({ error_message: "Invalid email or password" });
-        }
+        userModel.getToken(user_id, (err, token) => {
+            if (err) { return res.status(500).send({ error_message: "Database error retrieving user token" }); }
+            //If token exists, return it, else create a new one.
+            if (token) {
+                return res.status(200).send({
+                    user_id: user_id,
+                    session_token: token
+                });
+            } else {
+                userModel.saveSessionToken(user_id, (err, token) => {
+                    if (err) {
+                        return res.status(500).send({ error_message: "Error saving session token" });
+                    }
 
-        // Generate random session token required when user logged in.
-        const token = crypto.randomBytes(16).toString('hex');
-
-        // Save the session token in the database
-        userModel.saveSessionToken(user.user_id, token, (err) => {
-            if (err) {
-                return res.status(500).send({ error_message: "Error saving session token" });
+                    return res.status(200).send({
+                        user_id: user_id,
+                        session_token: token
+                    });
+                });
             }
-
-            return res.status(200).send({
-                user_id: user.user_id,
-                session_token: token
-            });
         });
     });
 };
+    //     if (!user) {
+    //         return res.status(400).send({ error_message: "Invalid email or password" });
+    //     }
+
+    //     if (!userModel.verifyPassword(user.password, user.salt, password)) {
+    //         return res.status(400).send({ error_message: "Invalid email or password" });
+    //     }
+
+    //     // Generate random session token required when user logged in.
+    //     const token = crypto.randomBytes(16).toString('hex');
+
+    //     // Save the session token in the database
+    //     userModel.saveSessionToken(user.user_id, token, (err) => {
+    //         if (err) {
+    //             return res.status(500).send({ error_message: "Error saving session token" });
+    //         }
+
+    //         return res.status(200).send({
+    //             user_id: user.user_id,
+    //             session_token: token
+    //         });
+    //     });
+    // });
+
 
 //Controller to logout the user from their session.
 const logoutUser = (req, res) => {
