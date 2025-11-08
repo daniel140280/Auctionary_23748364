@@ -1,22 +1,7 @@
 // Controller for handling core auction event related requests.
 const Joi = require('joi'); //import Joi for schema validation.
 const coreModel = require('../models/core.models'); //import the core model.
-const userModel = require('../models/user.models'); //import the user model as we need to understand specifics defined elsewhere already.
-
-//CONSIDER IF MOVE TO A HELPER CLASS TO CREATE SEPARATION OF CONCERNS
-//Helper function to verify session token of the user from the Header.
-// const authenticateUser = (req, res, callback) => {
-//     const token = req.headers['x-authorization'];
-//     if(!token) {
-//         return res.status(401).send({ error_message: "Missing session token" });
-//     } 
-//     userModel.getIdFromToken(token, (err, user_id) => {
-//         if(err || !user_id) {
-//             return res.status(401).send({ error_message: "Invalid or expired session token" });
-//         } 
-//         callback(user_id);
-//     });
-// }
+//const userModel = require('../models/user.models'); //import the user model as we need to understand specifics defined elsewhere already.
 
 //Create a new item for sale - requires user to be authenticated using session token.
 const createItem = (req, res) => {
@@ -27,6 +12,8 @@ const createItem = (req, res) => {
         starting_bid: Joi.number().integer().positive().required(),
         end_date: Joi.number().integer().min(Math.floor(Date.now() / 1000) + 60).required() // at least 1 minute in the future
     });
+
+    //const timestamp = Math.floor(Date.now() / 1000); // current timestamp in seconds
 
     //Validate request body against schema.
     const { error, value } = schema.validate(req.body);

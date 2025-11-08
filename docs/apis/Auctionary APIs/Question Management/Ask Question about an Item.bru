@@ -1,0 +1,26 @@
+meta {
+  name: Ask Question about an Item
+  type: http
+  seq: 1
+}
+
+post {
+  url: http://localhost:3333/item/1/question
+  body: json
+  auth: inherit
+}
+
+headers {
+  X-Authorization: 38741e5c32ce15ca214e2cd0e2afda43
+}
+
+body:json {
+  {
+     "question_text": "What is the condition of the item?"
+  }
+}
+
+settings {
+  encodeUrl: true
+  timeout: 0
+}
