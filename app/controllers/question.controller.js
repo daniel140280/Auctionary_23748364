@@ -84,7 +84,56 @@ const getQuestionsForItem = (req, res) => {
     });
 };
 
+//Answer a question about an item - only the item owner can answer.
+const answerQuestionForItem = (req, res) => {
+    const item_id = parseInt(req.params.item_id, 10);
+    const question_id = parseInt(req.params.question_id, 10);
+    if (isNaN(item_id) || isNaN(question_id)) {
+        return res.status(400).send({ error_message: "Invalid item ID or question ID" });
+    }
+
+    //Define schema for validating request body - assume 500 character length.
+    const schema = Joi.object({
+        answer_text: Joi.string().max(500).required()
+    });
+
+    //Validate request body against schema.
+    const { error, value } = schema.validate(req.body);
+    if (error) {
+        return res.status(400).send({ error_message: error.details[0].message });
+    }
+
+    const { answer_text } = value;
+    const user_id = req.user_id; //get user ID from authenticated request. Needed to validate ownership.
+
+    //Check if item exists before answering question.
+    coreModel.getItemById(item_id, (err, item) => {
+        if (err) {
+            return res.status(500).send({ error_message: "Database error checking item existence" });
+        }
+        if (!item) {
+            return res.status(404).send({ error_message: "Item not found" });
+        }
+
+        //Check the owner who listed the item for sale is correct. Then allow them to answer the question.
+        if (item.creator_id !== user_id) {
+            return res.status(403).send({ error_message: "Only the seller can answer questions on their items" });
+        }
+        //If validation passes, answer the question.
+        questionModel.answerQuestion(question_id, answer_text, (err, result) => {
+            if (err) {
+                return res.status(500).send({ error_message: "Database error answering question" });
+            }
+            if (!result) {
+                return res.status(404).send({ error_message: "No questions found for this item" });
+            }
+            return res.status(200).send({ message: "Question answered successfully" });
+        });
+    });
+}
+
 module.exports = {
     askQuestionForItem,
-    getQuestionsForItem
+    getQuestionsForItem,
+    answerQuestionForItem
 };

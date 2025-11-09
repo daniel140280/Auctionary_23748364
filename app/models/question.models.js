@@ -47,7 +47,25 @@ const getQuestionsByItemId = (item_id, callback) => {
     );
 };
 
+// Updating a question with an answer by the owner of the item.
+const answerQuestion = (question_id, answer_text, callback) => {
+    const query = `
+        UPDATE questions
+        SET answer = ?
+        WHERE question_id = ?
+    `;
+
+    db.run(query, [answer_text, question_id], function(err) {
+        if (err) {
+            return callback(err);
+        } else {
+            return callback(null);
+        }
+    });
+}
+
 module.exports = {
     createQuestion,
-    getQuestionsByItemId
+    getQuestionsByItemId,
+    answerQuestion
 };

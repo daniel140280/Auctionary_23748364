@@ -1,0 +1,20 @@
+meta {
+  name: Get questions about an Item
+  type: http
+  seq: 2
+}
+
+get {
+  url: http://localhost:3333/item/2/question
+  body: json
+  auth: inherit
+}
+
+headers {
+  X-Authorization: 830293ad5489680bdc0e33399143bffa
+}
+
+settings {
+  encodeUrl: true
+  timeout: 0
+}

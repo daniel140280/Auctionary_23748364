@@ -7,14 +7,17 @@ const coreModel = require('../models/core.models'); //import the core model.
 const createItem = (req, res) => {
     //Define schema for validating request body.
     const schema = Joi.object({
-        name: Joi.string().max(25).required(),
+        name: Joi.string().max(100).required(),
         description: Joi.string().max(1000).required(),
         starting_bid: Joi.number().integer().positive().required(),
         end_date: Joi.number().integer().min(Math.floor(Date.now() / 1000) + 60).required() // at least 1 minute in the future
     });
 
     //const timestamp = Math.floor(Date.now() / 1000); // current timestamp in seconds
-
+    console.log("Current timestamp: " + Math.floor(Date.now() / 1000));
+    console.log("Request end_date: " + req.body.end_date);
+    console.log("Request body: ", req.body);
+    
     //Validate request body against schema.
     const { error, value } = schema.validate(req.body);
     if(error) {

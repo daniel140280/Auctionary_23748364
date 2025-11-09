@@ -7,7 +7,7 @@ module.exports = function(app) {
         .post(checkAuthenticated, question.askQuestionForItem)
         .get(question.getQuestionsForItem);
     
-    // app.route('/question/:question_id')
-    //     .post(checkAuthenticated, question.answerQuestionForItem);
+    app.route('/question/:question_id')
+        .post(checkAuthenticated, question.answerQuestionForItem);
 
     };
