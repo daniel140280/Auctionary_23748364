@@ -79,9 +79,68 @@ const getBidHistory = (item_id, callback) => {
 );
 };
 
+//Search items based on specific criteria.
+const searchItems = (q, status, user_id, limit, offset, callback) => {
+    //An initial implementation which can be mutated later.
+    let baseQuery = `
+        SELECT i.item_id, i.name, i.description, i.end_date, i.creator_id, u.first_name, u.last_name
+        FROM items i
+        JOIN users u ON i.creator_id = u.user_id
+    `;
+    //Blank parameters enable different search combinations to be built.
+    const params = [];
+    const conditions = [];
+    const currentTime = Math.floor(Date.now() / 1000);
+
+
+    //Search on item name or description if 'q' is provided.
+    if(q) {
+        conditions.push(`LOWER(i.name) LIKE ? OR LOWER(i.description) LIKE ?`);
+        params.push(`%${q.toLowerCase()}%`, `%${q.toLowerCase()}%`);
+    }
+
+    //Filter based on auction status - only three options have been provided.
+    if(status === 'OPEN' && user_id) {
+        conditions.push(`i.creator_id = ? AND i.end_date > ?`);
+        params.push(user_id, currentTime);
+    } else if(status === 'ARCHIVE' && user_id) {
+        conditions.push(`i.creator_id = ? AND i.end_date <= ?`);
+        params.push(user_id, currentTime);
+    } else if(status === 'BID' && user_id) {
+        baseQuery += `
+            JOIN bids b ON i.item_id = b.item_id
+        `;
+        conditions.push(`b.user_id = ?`);
+        params.push(user_id);
+    }
+
+    //Next limit the number of results and apply offset for pagination, and combine WHERE clauses.
+    if(conditions.length > 0) {
+        baseQuery += ' WHERE ' + conditions.join(' AND ');
+    }
+    baseQuery += ' GROUP BY i.item_id ORDER BY i.end_date DESC LIMIT ? OFFSET ?';
+    params.push(limit, offset);
+
+    const rows = [];
+
+    db.each(baseQuery, params, (err, row) => {
+        if(err) {
+            return callback(err);
+        }
+        rows.push(row);
+    },
+    (err) => {
+        if(err) {
+            return callback(err);
+        }
+        return callback(null, rows);
+    });
+};
+
 module.exports = {
     createItem,
     getItemById,
     placeBid,
-    getBidHistory
+    getBidHistory,
+    searchItems
 };

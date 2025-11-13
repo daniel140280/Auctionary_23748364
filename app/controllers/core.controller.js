@@ -170,9 +170,35 @@ const bidHistory = (req, res) => {
     });
 }
 
-//PLACEHOLDER - to be implemented later
+//Search for items with optional filters and pagination.
 const itemSearch = (req, res) => {
-   return res.status(501).send({ message: 'Search functionality coming soon' });
+    const schema = Joi.object({
+        q: Joi.string().allow('',null), // search query string. A string used to filter the search end point (i.e., to find specific item)
+        status: Joi.string().valid('BID', 'OPEN', 'ARCHIVE'), // filter by auction status.
+        limit: Joi.number().integer().min(1).max(100).default(10), // number of results to return.
+        offset: Joi.number().integer().min(0).default(0) // number of items to skip before starting to collect the result set.
+    });
+
+    const { error, value } = schema.validate(req.query);
+
+    if(error) {
+        return res.status(400).send({ error_message: error.details[0].message });
+    }
+
+    const { q, status, limit, offset } = value;
+    const user_id = req.user_id || null; //get user ID from authenticated request if available. Can be null for unauthenticated requests.
+
+    //Validation if status filter used by user not logged in.
+    if(status && !user_id) {
+        return res.status(400).send({ error_message: "Authentication required to search for items" });
+    }
+
+    coreModel.searchItems(q, status, user_id, limit, offset, (err, results) => {
+        if(err) {
+            return res.status(500).send({ error_message: "Database error performing search" });
+        }
+        return res.status(200).send(results);
+    });
 };
 
 module.exports = {
