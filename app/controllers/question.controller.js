@@ -33,7 +33,6 @@ const askQuestionForItem = (req, res) => {
         if (!item) {
             return res.status(404).send({ error_message: "Item not found" });
         }
-
         //Validate the question to be created is not from the owner who listed the item for sale, then create the question.
         if (item.creator_id === askedByUserId) {
             return res.status(403).send({ error_message: "You cannot ask a question on your own item" });
@@ -43,7 +42,7 @@ const askQuestionForItem = (req, res) => {
             if (err) {
                 return res.status(500).send({ error_message: "Database error creating question" });
             }
-            return res.status(201).send({ question_id: result.question_id });
+            return res.status(200).send({ question_id: result.question_id });
         });
     });
 };

@@ -50,13 +50,31 @@ const getItemDetails = (req, res) => {
         if(!item) {
             return res.status(404).send({ error_message: "Item not found" });
         }
+        coreModel.getBidHistory(item_id, (err2, bids) => {
+            if(err2) {
+                return res.status(500).send({ error_message: "Database error retrieving bid history" });
+            }
+            if(bids.length > 0) {
+                //Determine the current highest bid.
+                item.current_bid = bids[0].amount;
+                item.current_bid_holder = {
+                    user_id: bids[0].user_id,
+                    first_name: bids[0].first_name,
+                    last_name: bids[0].last_name
+                };
+            } else {
+                item.current_bid = item.starting_bid; //default to starting bid if no bids placed yet.
+                item.current_bid_holder = null; //no bids yet.
+            }
         return res.status(200).send(item);
+    });
     });
 };
 
 //Bid on an item for sale - requires user to be authenticated using session token.
 const bidOnItem = (req, res) => {
         const user_id = req.user_id;
+        const timestamp = Math.floor(Date.now() / 1000); // current timestamp in seconds would be needed to compare bid times.
         const item_id = parseInt(req.params.item_id, 10);
 
         if(isNaN(item_id)) {
@@ -76,22 +94,62 @@ const bidOnItem = (req, res) => {
 
         const { amount } = value;
 
-        //If validation passes, place the bid SOME VALUES HERE TO CONFIRM ARE VALID.
-        coreModel.placeBid(item_id, user_id, amount, (err) => {
+        coreModel.getItemById(item_id, (err, item) => {
             if(err) {
-                if(err.message === "Item not found") {
-                    return res.status(404).send({ error_message: "Item not found" });
-                } else if(err.message === "Bid too low") {
-                    return res.status(400).send({ error_message: "Bid amount is too low" });
-                } else if(err.message === "Auction ended") {
-                    return res.status(400).send({ error_message: "Auction has already ended" });
-                } else {
-                    return res.status(500).send({ error_message: "Database error placing bid" });
-                }
+                return res.status(500).send({ error_message: "Database error retrieving item details" });
             }
-            return res.status(201).send({ message: "Bid placed successfully" });
-        });
-}
+            if(!item) {
+                return res.status(404).send({ error_message: "Item not found" });
+            }
+
+            //Check if user is trying to bid on their own item.
+            if(item.creator_id === user_id) {
+                return res.status(403).send({ error_message: "Cannot bid on your own item" });
+            }
+            //Check if auction has ended or throw an error.
+            if(timestamp > item.end_date) {
+                return res.status(400).send({ error_message: "Auction has already ended" });
+            }
+
+            //Get current highest bid for further validation.
+            coreModel.getBidHistory(item_id, (err2, bids) => {
+                if(err2) {
+                    return res.status(500).send({ error_message: "Database error retrieving bid history" });
+                }
+                //Validate that the new bid is higher than the current highest bid.
+                const highestBid = bids.length > 0 ? bids[0].amount : item.starting_bid;
+                if(amount <= highestBid) {
+                    return res.status(400).send({ error_message: "Bid too low" });
+                }
+
+                //If validation passes, place the bid.
+                coreModel.placeBid(item_id, user_id, amount, timestamp, (err3) => {
+                    if(err3) {
+                        return res.status(500).send({ error_message: "Database error placing bid" });
+                    }
+                    return res.status(201).send({ message: "Bid Received" });//is this spelt correctly compared to API Hub?
+                });
+            });
+        }
+    );
+};
+
+//         //If validation passes, place the bid SOME VALUES HERE TO CONFIRM ARE VALID.
+//         coreModel.placeBid(item_id, user_id, amount, timestamp, (err) => {
+//             if(err) {
+//                 if(err.message === "Item not found") {
+//                     return res.status(404).send({ error_message: "Item not found" });
+//                 } else if(err.message === "Bid too low") {
+//                     return res.status(400).send({ error_message: "Bid amount is too low" });
+//                 } else if(err.message === "Auction ended") {
+//                     return res.status(400).send({ error_message: "Auction has already ended" });
+//                 } else {
+//                     return res.status(500).send({ error_message: "Database error placing bid" });
+//                 }
+//             }
+//             return res.status(201).send({ message: "Bid placed successfully" });
+//         });
+// }
 
 //Retrieve bid history for a specific item.
 const bidHistory = (req, res) => {
@@ -112,9 +170,35 @@ const bidHistory = (req, res) => {
     });
 }
 
-//PLACEHOLDER - to be implemented later
+//Search for items with optional filters and pagination.
 const itemSearch = (req, res) => {
-   return res.status(501).send({ message: 'Search functionality coming soon' });
+    const schema = Joi.object({
+        q: Joi.string().allow('',null), // search query string. A string used to filter the search end point (i.e., to find specific item)
+        status: Joi.string().valid('BID', 'OPEN', 'ARCHIVE'), // filter by auction status.
+        limit: Joi.number().integer().min(1).max(100).default(10), // number of results to return.
+        offset: Joi.number().integer().min(0).default(0) // number of items to skip before starting to collect the result set.
+    });
+
+    const { error, value } = schema.validate(req.query);
+
+    if(error) {
+        return res.status(400).send({ error_message: error.details[0].message });
+    }
+
+    const { q, status, limit, offset } = value;
+    const user_id = req.user_id || null; //get user ID from authenticated request if available. Can be null for unauthenticated requests.
+
+    //Validation if status filter used by user not logged in.
+    if(status && !user_id) {
+        return res.status(400).send({ error_message: "Authentication required to search for items" });
+    }
+
+    coreModel.searchItems(q, status, user_id, limit, offset, (err, results) => {
+        if(err) {
+            return res.status(500).send({ error_message: "Database error performing search" });
+        }
+        return res.status(200).send(results);
+    });
 };
 
 module.exports = {
