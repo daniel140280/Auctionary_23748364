@@ -157,17 +157,22 @@ const bidHistory = (req, res) => {
     if(isNaN(item_id)) {
         return res.status(400).send({ error_message: "Invalid item ID" });
     }
-
+    //Check if item exists before retrieving bid history.
+    coreModel.getItemById(item_id, (err, item) => {
+        if(err) {
+            return res.status(500).send({ error_message: "Database error checking item" });
+        }
+        if(!item) {
+            return res.status(404).send({ error_message: "Item not found" });
+        }
+    //Only retrieve bid history if item exists.
     coreModel.getBidHistory(item_id, (err, bids) => {
         if(err) {
-            if(err.message === "Item not found") {
-                return res.status(404).send({ error_message: "No bids found" });
-            } else {
                 return res.status(500).send({ error_message: "Database error retrieving bid history" });
             }
-        }
-        return res.status(200).send(bids);
+            return res.status(200).send(bids || []);
     });
+});
 }
 
 //Search for items with optional filters and pagination.
@@ -186,20 +191,50 @@ const itemSearch = (req, res) => {
     }
 
     const { q, status, limit, offset } = value;
-    const user_id = req.user_id || null; //get user ID from authenticated request if available. Can be null for unauthenticated requests.
 
-    //Validation if status filter used by user not logged in.
-    if(status && !user_id) {
+    //Get user_id from token if provided (optional authentication)
+    const token = req.get('X-Authorization') || req.get('x-authorization');
+    //If status filter is used, authentication is required
+    if(status && !token) {
         return res.status(400).send({ error_message: "Authentication required to search for items" });
     }
 
-    coreModel.searchItems(q, status, user_id, limit, offset, (err, results) => {
-        if(err) {
-            return res.status(500).send({ error_message: "Database error performing search" });
-        }
-        return res.status(200).send(results);
-    });
+    // If token is provided, get user_id from it
+    if(token) {
+        const userModel = require('../models/user.models');
+        userModel.getIdFromToken(token, (err, user_id) => {
+            if(err || !user_id) {
+                return res.status(401).send({ error_message: "Invalid session token" });
+            }
+            //Perform search with authenticated user_id
+            coreModel.searchItems(q, status, user_id, limit, offset, (err, results) => {
+                if(err) {
+                    return res.status(500).send({ error_message: "Database error performing search" });
+                }
+                return res.status(200).send(results);
+            });
+        });
+    } else {
+        //Perform search without user_id for unauthenticated requests
+        coreModel.searchItems(q, status, null, limit, offset, (err, results) => {
+            if(err) {
+                return res.status(500).send({ error_message: "Database error performing search" });
+            }
+            return res.status(200).send(results);
+        });
+    }
 };
+
+    
+//     const user_id = req.user_id || null; //get user ID from authenticated request if available. Can be null for unauthenticated requests.
+
+//     //Validation if status filter used by user not logged in.
+//     if(status && !user_id) {
+//         return res.status(400).send({ error_message: "Authentication required to search for items" });
+//     }
+
+    
+// };
 
 module.exports = {
     createItem,

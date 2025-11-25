@@ -26,6 +26,7 @@ const getQuestionsByItemId = (item_id, callback) => {
         SELECT question_id, question, answer
         FROM questions
         WHERE item_id = ?
+        ORDER BY question_id DESC
     `;
 
     const questions = [];
@@ -57,15 +58,35 @@ const answerQuestion = (question_id, answer_text, callback) => {
 
     db.run(query, [answer_text, question_id], function(err) {
         if (err) {
-            return callback(err);
-        } else {
-            return callback(null);
+            return callback(err, null);
+        } 
+        //Check if any rows were updated
+        if(this.changes === 0) {
+            return callback(null, null); // No rows updated, question_id may not exist
         }
+        return callback(null, { success: true, changes: this.changes });
     });
 }
+
+// Get a single question by ID
+const getQuestionById = (question_id, callback) => {
+    const query = `
+        SELECT question_id, item_id, asked_by, question, answer
+        FROM questions
+        WHERE question_id = ?
+    `;
+
+    db.get(query, [question_id], (err, row) => {
+        if (err) {
+            return callback(err, null);
+        }
+        return callback(null, row);
+    });
+};
 
 module.exports = {
     createQuestion,
     getQuestionsByItemId,
-    answerQuestion
+    answerQuestion,
+    getQuestionById
 };

@@ -95,7 +95,7 @@ const loginUser = (req, res) => {
     const { email, password } = value; //destructure validated values from the request body.
 
     userModel.authenticateUser(email, password, (err, user_id) => {
-        if (err === 404) { return res.status(400).send({ error_message: "Invalid email or password supplied" }); }
+        if (err === 404) { return res.status(401).send({ error_message: "Invalid email or password supplied" }); }
 
         if (err) { return res.status(500).send({ error_message: "Internal database error during authentication" }); }
 
@@ -138,7 +138,7 @@ const logoutUser = (req, res) => {
         }
 
         if (changes === 0) {
-            return res.status(401).send({ error_message: "Invalid or expired session token" });
+            return res.status(403).send({ error_message: "Invalid or expired session token" });
         }
 
         return res.status(200).send({ message: "Logged out successfully" });

@@ -92,26 +92,38 @@ const searchItems = (q, status, user_id, limit, offset, callback) => {
     const conditions = [];
     const currentTime = Math.floor(Date.now() / 1000);
 
+    //Filter based on auction status first - only three options have been provided.
+    if(status === 'OPEN' && user_id) {
+        conditions.push(`i.creator_id = ?`);
+        conditions.push(`i.end_date > ?`);
+        params.push(user_id, currentTime);
+    } else if(status === 'ARCHIVE' && user_id) {
+        conditions.push(`i.creator_id = ?`);
+        conditions.push(`i.end_date <= ?`);
+        params.push(user_id, currentTime);
+    } else if(status === 'BID' && user_id) {
+        baseQuery += ` JOIN bids b ON i.item_id = b.item_id `;
+        conditions.push(`b.user_id = ?`);
+        params.push(user_id);
+    }
+    // if(status === 'OPEN' && user_id) {
+    //     conditions.push(`i.creator_id = ? AND i.end_date > ?`);
+    //     params.push(user_id, currentTime);
+    // } else if(status === 'ARCHIVE' && user_id) {
+    //     conditions.push(`i.creator_id = ? AND i.end_date <= ?`);
+    //     params.push(user_id, currentTime);
+    // } else if(status === 'BID' && user_id) {
+    //     baseQuery += `
+    //         JOIN bids b ON i.item_id = b.item_id
+    //     `;
+    //     conditions.push(`b.user_id = ?`);
+    //     params.push(user_id);
+    // }
 
     //Search on item name or description if 'q' is provided.
     if(q) {
         conditions.push(`LOWER(i.name) LIKE ? OR LOWER(i.description) LIKE ?`);
         params.push(`%${q.toLowerCase()}%`, `%${q.toLowerCase()}%`);
-    }
-
-    //Filter based on auction status - only three options have been provided.
-    if(status === 'OPEN' && user_id) {
-        conditions.push(`i.creator_id = ? AND i.end_date > ?`);
-        params.push(user_id, currentTime);
-    } else if(status === 'ARCHIVE' && user_id) {
-        conditions.push(`i.creator_id = ? AND i.end_date <= ?`);
-        params.push(user_id, currentTime);
-    } else if(status === 'BID' && user_id) {
-        baseQuery += `
-            JOIN bids b ON i.item_id = b.item_id
-        `;
-        conditions.push(`b.user_id = ?`);
-        params.push(user_id);
     }
 
     //Next limit the number of results and apply offset for pagination, and combine WHERE clauses.
