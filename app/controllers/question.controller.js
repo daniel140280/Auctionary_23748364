@@ -68,27 +68,27 @@ const getQuestionsForItem = (req, res) => {
                 return res.status(500).send({ error_message: "Database error retrieving questions" });
             }
             if (!questions || questions.length === 0) {
-                return res.status(200).send({ questions: [] }); //return empty array if no questions found.
+                return res.status(200).send([]); //return empty array if no questions found.
             }
             const questionList = [];
             for(let i = 0; i < questions.length; i++) {
                 questionList.push({
                     question_id: questions[i].question_id,
-                    question_text: questions[i].question_text,
-                    answer_text: questions[i].answer_text
+                    question_text: questions[i].question,
+                    answer_text: questions[i].answer
                 });
             }
-            return res.status(200).send({ questionList });
+            return res.status(200).send(questionList);
         });
     });
 };
 
 //Answer a question about an item - only the item owner can answer.
 const answerQuestionForItem = (req, res) => {
-    const item_id = parseInt(req.params.item_id, 10);
+    // const item_id = parseInt(req.params.item_id, 10);
     const question_id = parseInt(req.params.question_id, 10);
-    if (isNaN(item_id) || isNaN(question_id)) {
-        return res.status(400).send({ error_message: "Invalid item ID or question ID" });
+    if (isNaN(question_id)) {
+        return res.status(400).send({ error_message: "Invalid question ID" });
     }
 
     //Define schema for validating request body - assume 500 character length.
@@ -105,8 +105,17 @@ const answerQuestionForItem = (req, res) => {
     const { answer_text } = value;
     const user_id = req.user_id; //get user ID from authenticated request. Needed to validate ownership.
 
-    //Check if item exists before answering question.
-    coreModel.getItemById(item_id, (err, item) => {
+    //First get the questions to find out which item it belongs to.
+    questionModel.getQuestionById(question_id, (err, question) => {
+        if (err) {
+            return res.status(500).send({ error_message: "Database error checking question" });
+        }
+        if (!question) {
+            return res.status(404).send({ error_message: "Question not found" });
+        }
+
+    //Secondly, we check if item exists and user is the owner before answering question.
+    coreModel.getItemById(question.item_id, (err, item) => {
         if (err) {
             return res.status(500).send({ error_message: "Database error checking item existence" });
         }
@@ -114,7 +123,7 @@ const answerQuestionForItem = (req, res) => {
             return res.status(404).send({ error_message: "Item not found" });
         }
 
-        //Check the owner who listed the item for sale is correct. Then allow them to answer the question.
+        //Check the owner who listed the item for sale is correct. THEN allow them to answer the question.
         if (item.creator_id !== user_id) {
             return res.status(403).send({ error_message: "Only the seller can answer questions on their items" });
         }
@@ -129,6 +138,7 @@ const answerQuestionForItem = (req, res) => {
             return res.status(200).send({ message: "Question answered successfully" });
         });
     });
+});
 }
 
 module.exports = {
