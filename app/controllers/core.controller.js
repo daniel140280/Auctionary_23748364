@@ -1,22 +1,20 @@
 // Controller for handling core auction event related requests.
 const Joi = require('joi'); //import Joi for schema validation.
-const coreModel = require('../models/core.models'); //import the core model.
-//const userModel = require('../models/user.models'); //import the user model as we need to understand specifics defined elsewhere already.
+const coreModel = require('../models/core.models');
 
-//Create a new item for sale - requires user to be authenticated using session token.
+/**
+ * Creates a new auction item for sale.
+ * Requires user to be authenticated using session token.
+ * Validates input and ensures end_date is at least 1 minute in the future.
+ */
 const createItem = (req, res) => {
     //Define schema for validating request body.
     const schema = Joi.object({
         name: Joi.string().max(100).required(),
         description: Joi.string().max(1000).required(),
         starting_bid: Joi.number().integer().positive().required(),
-        end_date: Joi.number().integer().min(Math.floor(Date.now() / 1000) + 60).required() // at least 1 minute in the future
+        end_date: Joi.number().integer().min(Math.floor(Date.now() / 1000) + 60).required()
     });
-
-    //const timestamp = Math.floor(Date.now() / 1000); // current timestamp in seconds
-    console.log("Current timestamp: " + Math.floor(Date.now() / 1000));
-    console.log("Request end_date: " + req.body.end_date);
-    console.log("Request body: ", req.body);
     
     //Validate request body against schema.
     const { error, value } = schema.validate(req.body);
@@ -36,7 +34,9 @@ const createItem = (req, res) => {
     });
 };
 
-//Get details of a specific item.
+/**
+ * Retrieves details of a specific item, including current highest bid and bid holder.
+ */
 const getItemDetails = (req, res) => {
     const item_id = parseInt(req.params.item_id, 10);
     if(isNaN(item_id)) {
@@ -71,7 +71,11 @@ const getItemDetails = (req, res) => {
     });
 };
 
-//Bid on an item for sale - requires user to be authenticated using session token.
+/**
+ * Place a bid on an auction item for sale.
+ * Requires user to be authenticated using session token.
+ * Validation required user doesn't own item, auction hasn't ended and bid is higher than current highest.
+ */
 const bidOnItem = (req, res) => {
         const user_id = req.user_id;
         const timestamp = Math.floor(Date.now() / 1000); // current timestamp in seconds would be needed to compare bid times.
@@ -134,24 +138,9 @@ const bidOnItem = (req, res) => {
     );
 };
 
-//         //If validation passes, place the bid SOME VALUES HERE TO CONFIRM ARE VALID.
-//         coreModel.placeBid(item_id, user_id, amount, timestamp, (err) => {
-//             if(err) {
-//                 if(err.message === "Item not found") {
-//                     return res.status(404).send({ error_message: "Item not found" });
-//                 } else if(err.message === "Bid too low") {
-//                     return res.status(400).send({ error_message: "Bid amount is too low" });
-//                 } else if(err.message === "Auction ended") {
-//                     return res.status(400).send({ error_message: "Auction has already ended" });
-//                 } else {
-//                     return res.status(500).send({ error_message: "Database error placing bid" });
-//                 }
-//             }
-//             return res.status(201).send({ message: "Bid placed successfully" });
-//         });
-// }
-
-//Retrieve bid history for a specific item.
+/**
+ * Retrieves complete bid history for a specific item.
+ */
 const bidHistory = (req, res) => {
     const item_id = parseInt(req.params.item_id, 10);
     if(isNaN(item_id)) {
@@ -175,7 +164,10 @@ const bidHistory = (req, res) => {
 });
 }
 
-//Search for items with optional filters and pagination.
+/**
+ * Searches items with optional filters and pagination.
+ * Status filter requires authentication.
+ */
 const itemSearch = (req, res) => {
     const schema = Joi.object({
         q: Joi.string().allow('',null), // search query string. A string used to filter the search end point (i.e., to find specific item)
@@ -224,17 +216,6 @@ const itemSearch = (req, res) => {
         });
     }
 };
-
-    
-//     const user_id = req.user_id || null; //get user ID from authenticated request if available. Can be null for unauthenticated requests.
-
-//     //Validation if status filter used by user not logged in.
-//     if(status && !user_id) {
-//         return res.status(400).send({ error_message: "Authentication required to search for items" });
-//     }
-
-    
-// };
 
 module.exports = {
     createItem,

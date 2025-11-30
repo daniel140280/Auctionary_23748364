@@ -1,6 +1,5 @@
-// Controller for handling user related requests.
-const Joi = require('joi'); //import Joi for schema validation.
-const userModel = require('../models/user.models'); //import the users model so the controller can check for existing users and create new ones on the database.
+const Joi = require('joi'); 
+const userModel = require('../models/user.models');
 const crypto = require('crypto'); //import crypto library for generating session tokens.
 
 const passwordRegex = /^(?=.*[a-z])(?=.*[A-Z])(?=.*\d)(?=.*[@$!%*?&])[A-Za-z\d@$!%*?&]{8,16}$/;
@@ -15,15 +14,18 @@ const userSchema = Joi.object({
     })
 });
 
-// Controller function that handles the incoming HTTP request (routes) to create a new user.
+/**
+ * Creates a new user account.
+ * Validates user input and ensures email is not already registered.
+ */
 const createUser = (req, res) => {
-    const { error, value } = userSchema.validate(req.body); //destructure error and value from schema validation result.
+    const { error, value } = userSchema.validate(req.body);
 
     if (error) {
-        return res.status(400).send({ error_message: error.details[0].message }); //if validation fails, return 400 with the first error message (now renamed).
+        return res.status(400).send({ error_message: error.details[0].message }); 
     }
 
-    const { first_name, last_name, email, password } = value; //destructure validated values from the request body.
+    const { first_name, last_name, email, password } = value;
 
     // Check if email already exists before creating new user.
     userModel.getUserByEmail(email, (err, existingUser) => {
@@ -51,7 +53,9 @@ const userIdSchema = Joi.object({
     user_id: Joi.number().integer().min(1).required()
 });
 
-//Controller function to return the user profile including selling and bidding history, based on ID search.
+/**
+ * Retrieves user profile including their selling and bidding history.
+ */
 const getUserProfile = (req, res) => {
     //validate the user_id parameter from the URL.
     const { error } = userIdSchema.validate(req.params);
@@ -59,8 +63,8 @@ const getUserProfile = (req, res) => {
         return res.status(400).send({ error_message: "Invalid user ID - must be a positive number" });
     }
 
-    //convert user_id from string to integer (base 10).
-    const user_id = parseInt(req.params.user_id, 10);//adding the 10 to specify base 10 parsing.
+    //convert user_id from string to integer (base 10) for parsing.
+    const user_id = parseInt(req.params.user_id, 10);
 
     //whilst parameter is valid, need to check it is a valid ID before we can fetch user profile from the database using the user model.
     userModel.getUserProfileById(user_id, (err, profile) => {
@@ -84,7 +88,10 @@ const loginSchema = Joi.object({
         })
     });
 
-//Controller function for user login using their email and password
+/**
+ * Authenticates user with their email and password, and returns session token.
+ * Generates new token if one doesn't exist.
+ */
 const loginUser = (req, res) => {
     //validate the request body against the login schema.
     const { error, value } = loginSchema.validate(req.body);
@@ -92,13 +99,14 @@ const loginUser = (req, res) => {
         return res.status(400).send({ error_message: error.details[0].message });
     }
 
-    const { email, password } = value; //destructure validated values from the request body.
+    const { email, password } = value;
 
     userModel.authenticateUser(email, password, (err, user_id) => {
         if (err === 404) { return res.status(401).send({ error_message: "Invalid email or password supplied" }); }
 
         if (err) { return res.status(500).send({ error_message: "Internal database error during authentication" }); }
 
+        // Check for existing token before generating new one
         userModel.getToken(user_id, (err, token) => {
             if (err) { return res.status(500).send({ error_message: "Database error retrieving user token" }); }
             //If token exists, return it, else create a new one.
@@ -123,7 +131,9 @@ const loginUser = (req, res) => {
     });
 };
 
-//Controller to logout the user from their session.
+/**
+ * Logs out user from their session and any authenticated activities, by clearing their session token.
+ */
 const logoutUser = (req, res) => {
     //token comes from the Authorization header?
     const token = req.headers['x-authorization'];

@@ -1,14 +1,14 @@
-//Models handle user-related database operations.
 const db = require('../../database'); //imports the database connection.
 const crypto = require('crypto'); //imports the crypto library used for making salt and hashing passwords.
 
-//Inserts new user into the database - accepts user details and a callback function to run after DB operation completes.
+/**
+ * Creates a new user and inserts into the database with hashed password and salt.
+ */
 const createUser = (first_name, last_name, email, password, callback) => {
     //create salt and hash the password
     const salt = crypto.randomBytes(64); //generates random 64-byte salt and stored to verify passwords later.
     const hash = getHash(password, salt);//want to hash the salt - creating hex encoded hash through concatenation of the password and salt using magic!
     
-    //define our SQL insert statement and parameters for injection to bind (preventing SQL injection)
     const insert = `INSERT INTO users (first_name, last_name, email, password, salt) VALUES (?, ?, ?, ?, ?)`;
     const params = [first_name, last_name, email, hash, salt.toString('hex')];
 
@@ -22,13 +22,16 @@ const createUser = (first_name, last_name, email, password, callback) => {
     });
 };
 
-//Function to generate a hash from password and salt - private helper function no need to export.
+/**
+ * Private help function to generate secure hash from password and salt.
+ */
 const getHash = (password, salt) => {
     return crypto.pbkdf2Sync(password, salt, 10000, 256, 'sha256').toString('hex');
 };
 
-//HELPER FUNCTIONS FOR USER AUTHENTICATION AND PROFILE RETRIEVAL
-//Fetches user by email from the database and accepts email or returns undefined.
+/**
+ * Fetches user from the database based on email, or returns undefined.
+ */
 const getUserByEmail = (email, callback) => {
     const query = `SELECT * FROM users WHERE email = ?`;
     db.get(query, [email], (err, row) => {
@@ -36,7 +39,9 @@ const getUserByEmail = (email, callback) => {
     });
 };
 
-//Get session token from user id from the database.
+/**
+ * Retrieves session token from the database based on user_id.
+ */
 const getToken = (user_id, callback) => {
     const query = `SELECT session_token FROM users WHERE user_id = ?`;
     db.get(query, [user_id], (err, row) => {
@@ -50,7 +55,9 @@ const getToken = (user_id, callback) => {
     });
 };
 
-//Get user_id from session token.
+/**
+ * Retrieves user_id from session token.
+ */
 const getIdFromToken = (token, callback) => {
     if(!token) {
         return callback(null, null); // Early verification to check a token is provided.
@@ -67,7 +74,10 @@ const getIdFromToken = (token, callback) => {
     });
 }
 
-//Authenticate user by email and password.
+/**
+ * Authenticates user by verifying email and password hash.
+ * Returns 404 error code for invalid credentials.
+ */
 const authenticateUser = (email, password, callback) => {
     const query = `SELECT user_id, password, salt FROM users WHERE email = ?`;
 
@@ -87,13 +97,17 @@ const authenticateUser = (email, password, callback) => {
     });
 };
 
-//Used for checking login by password meets criteria of saved hash and salt.
+/**
+ * Used for checking login by password meets criteria of saved hash and salt..
+ */
 const verifyPassword = (storedHash, storedSalt, inputPassword) => {
     const hash = crypto.createHash('sha256').update(inputPassword + storedSalt).digest('hex');
     return storedHash === hash;
 };
 
-//Get users profile including buying and selling history.
+/**
+ * Retrieves complete user profile including selling, bidding, and ended auction history.
+ */
 const getUserProfileById = (user_id, callback) => {
     //Firstly get users basic info and validate there is a user with that ID.
     const userQuery = `SELECT user_id, first_name, last_name FROM users WHERE user_id = ?`;
@@ -167,7 +181,9 @@ const getUserProfileById = (user_id, callback) => {
     });
 };
 
-// Save a new session token when logging in
+/**
+ * Save a new session token when user authenticated and logs in.
+ */
 const saveSessionToken = (user_id, callback) => {
     let token = crypto.randomBytes(16).toString('hex'); //generate the session token.
 
@@ -178,7 +194,9 @@ const saveSessionToken = (user_id, callback) => {
     });
 };
 
-// Clear session token on logout
+/**
+ * On user logout, clear session token.
+ */
 const clearSessionToken = (token, callback) => {
     const query = `UPDATE users SET session_token = NULL WHERE session_token = ?`;
     db.run(query, [token], function(err) {
@@ -186,7 +204,6 @@ const clearSessionToken = (token, callback) => {
     });
 };
 
-//export the functions to be used in other parts of the application, mostly the controller.
 module.exports = {
     createUser,
     getUserByEmail,

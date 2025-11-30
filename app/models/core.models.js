@@ -1,7 +1,9 @@
-//Models handle user-related database operations.
 const db = require('../../database'); //imports the database connection.
 
-//create a new item for auction.
+/**
+ * Creates a new auction item in the database.
+ * Automatically sets start_date to current timestamp.
+ */
 const createItem = (creator_id, name, description, starting_bid, end_date, callback) => {
     const start_date = Math.floor(Date.now() / 1000); // current timestamp in seconds, which is important in an auction system.
 
@@ -18,7 +20,9 @@ const createItem = (creator_id, name, description, starting_bid, end_date, callb
     });
 };
 
-//Get item details by ID.
+/**
+ * Retrieves item details by ID based on creator information.
+ */
 const getItemById = (item_id, callback) => {
     const getItemQuery = `
         SELECT i.item_id, i.name, i.description, i.starting_bid, i.start_date, i.end_date,
@@ -34,9 +38,10 @@ const getItemById = (item_id, callback) => {
     });
 };
 
-//Place a bid on an item.
+/**
+ * Place a bid on an item and records it in the database.
+ */
 const placeBid = (item_id, user_id, amount, timestamp, callback) => {
-    //const timestamp = Math.floor(Date.now() / 1000); // current timestamp in seconds would be needed to compare bid times.
 
     const placeBidQuery = `
         INSERT INTO bids (item_id, user_id, amount, timestamp)
@@ -51,7 +56,9 @@ const placeBid = (item_id, user_id, amount, timestamp, callback) => {
     });
 };
 
-//Get bid history for an item.
+/**
+ * Retrieves all bid history for an item, ordered by amount (highest first).
+ */
 const getBidHistory = (item_id, callback) => {
     const getBidsQuery = `
         SELECT b.item_id, b.amount, b.timestamp, u.user_id, u.first_name, u.last_name
@@ -79,7 +86,13 @@ const getBidHistory = (item_id, callback) => {
 );
 };
 
-//Search items based on specific criteria.
+/**
+ * Searches items based on specific criteria.
+ * Status filters are as follows:
+ * OPEN (user's active listings), 
+ * ARCHIVE (user's ended listings), 
+ * BID (items user has bid on).
+ */
 const searchItems = (q, status, user_id, limit, offset, callback) => {
     //An initial implementation which can be mutated later.
     let baseQuery = `
@@ -106,19 +119,6 @@ const searchItems = (q, status, user_id, limit, offset, callback) => {
         conditions.push(`b.user_id = ?`);
         params.push(user_id);
     }
-    // if(status === 'OPEN' && user_id) {
-    //     conditions.push(`i.creator_id = ? AND i.end_date > ?`);
-    //     params.push(user_id, currentTime);
-    // } else if(status === 'ARCHIVE' && user_id) {
-    //     conditions.push(`i.creator_id = ? AND i.end_date <= ?`);
-    //     params.push(user_id, currentTime);
-    // } else if(status === 'BID' && user_id) {
-    //     baseQuery += `
-    //         JOIN bids b ON i.item_id = b.item_id
-    //     `;
-    //     conditions.push(`b.user_id = ?`);
-    //     params.push(user_id);
-    // }
 
     //Search on item name or description if 'q' is provided.
     if(q) {
@@ -126,7 +126,8 @@ const searchItems = (q, status, user_id, limit, offset, callback) => {
         params.push(`%${q.toLowerCase()}%`, `%${q.toLowerCase()}%`);
     }
 
-    //Next limit the number of results and apply offset for pagination, and combine WHERE clauses.
+    // Build the final query with the conditions.
+    // Next limit the number of results and apply offset for pagination, and combine WHERE clauses.
     if(conditions.length > 0) {
         baseQuery += ' WHERE ' + conditions.join(' AND ');
     }

@@ -1,9 +1,12 @@
 const db = require('../../database'); //imports the database connection.
 
-//Create a new questions for an item.
+/**
+ * Creates a new question for an auction item.
+ * @param {number} asked_by - User ID of the person asking
+ * @param {number} item_id - Item being questioned
+ * @param {string} question_text - The question content
+ */
 const createQuestion = (asked_by, item_id, question_text, callback) => {
-    //const timestamp = Math.floor(Date.now() / 1000); // current timestamp in seconds....NEEDED TO CHECK IF AUCTION ENDED?
-
     const createQuestionQuery = `
         INSERT INTO questions (asked_by, item_id, question)
         VALUES (?, ?, ?)
@@ -20,7 +23,9 @@ const createQuestion = (asked_by, item_id, question_text, callback) => {
     });
 };
 
-// Retrieve all questions for a specific item.
+/**
+ * Retrieve all questions for a specific item, ordered by the newest first.
+ */
 const getQuestionsByItemId = (item_id, callback) => {
     const query = `
         SELECT question_id, question, answer
@@ -48,7 +53,9 @@ const getQuestionsByItemId = (item_id, callback) => {
     );
 };
 
-// Updating a question with an answer by the owner of the item.
+/**
+ * Updates a question with an answer from the owner of the item.
+ */
 const answerQuestion = (question_id, answer_text, callback) => {
     const query = `
         UPDATE questions
@@ -68,7 +75,9 @@ const answerQuestion = (question_id, answer_text, callback) => {
     });
 }
 
-// Get a single question by ID
+/**
+ * Retrieve a single question by ID.
+ */
 const getQuestionById = (question_id, callback) => {
     const query = `
         SELECT question_id, item_id, asked_by, question, answer

@@ -1,9 +1,11 @@
-const Joi = require('joi'); //import Joi for schema validation.
-const questionModel = require('../models/question.models'); //import the question model.
-const coreModel = require('../models/core.models'); //import the core model to check item existence and ownership.
-const { checkAuthenticated } = require('../lib/auth');
+const Joi = require('joi'); 
+const questionModel = require('../models/question.models'); 
+const coreModel = require('../models/core.models'); 
 
-//Ask a question about an item.
+/**
+ * Creates a new question about an auction item.
+ * Validates that the question is not being asked by the item owner.
+ */
 const askQuestionForItem = (req, res) => {
     const askedByUserId = req.user_id; //get user ID from authenticated request - required to validate ownership later.
     const item_id = parseInt(req.params.item_id, 10);
@@ -23,7 +25,7 @@ const askQuestionForItem = (req, res) => {
     }
 
     const { question_text } = value;
-    const user_id = req.user_id; //get user ID from authenticated request.
+    const user_id = req.user_id;
 
     //Check if item exists before asking question.
     coreModel.getItemById(item_id, (err, item) => {
@@ -47,6 +49,9 @@ const askQuestionForItem = (req, res) => {
     });
 };
 
+/**
+ * Retrieves all questions and answers, if available, for a specific item.
+ */
 const getQuestionsForItem = (req, res) => {
     const item_id = parseInt(req.params.item_id, 10);
     if (isNaN(item_id)) {
@@ -70,6 +75,7 @@ const getQuestionsForItem = (req, res) => {
             if (!questions || questions.length === 0) {
                 return res.status(200).send([]); //return empty array if no questions found.
             }
+            // Format response to match API specification
             const questionList = [];
             for(let i = 0; i < questions.length; i++) {
                 questionList.push({
@@ -83,9 +89,11 @@ const getQuestionsForItem = (req, res) => {
     });
 };
 
-//Answer a question about an item - only the item owner can answer.
+/**
+ * Answer a question about an item - only the item owner can answer.
+ * Validates that the answerer is the item creator.
+ */
 const answerQuestionForItem = (req, res) => {
-    // const item_id = parseInt(req.params.item_id, 10);
     const question_id = parseInt(req.params.question_id, 10);
     if (isNaN(question_id)) {
         return res.status(400).send({ error_message: "Invalid question ID" });

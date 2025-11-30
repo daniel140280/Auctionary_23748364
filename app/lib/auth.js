@@ -1,5 +1,10 @@
 const users = require('../models/user.models');
 
+/**
+ * Middleware added to verify user authentication via session token.
+ * Method extracts token from X-Authorization header and validates it.
+ * Then, if valid, it will attach user_id to request object.
+ */
 const checkAuthenticated = (req, res, next) => {
     let token = req.get('X-Authorization') || req.get('x-authorization');
 
