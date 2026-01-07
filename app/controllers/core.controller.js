@@ -1,6 +1,6 @@
 // Controller for handling core auction event related requests.
-const Joi = require('joi'); //import Joi for schema validation.
-const coreModel = require('../models/core.models');
+const Joi = require("joi"); //import Joi for schema validation.
+const coreModel = require("../models/core.models");
 
 /**
  * Creates a new auction item for sale.
@@ -8,67 +8,83 @@ const coreModel = require('../models/core.models');
  * Validates input and ensures end_date is at least 1 minute in the future.
  */
 const createItem = (req, res) => {
-    //Define schema for validating request body.
-    const schema = Joi.object({
-        name: Joi.string().max(100).required(),
-        description: Joi.string().max(1000).required(),
-        starting_bid: Joi.number().integer().positive().required(),
-        end_date: Joi.number().integer().min(Math.floor(Date.now() / 1000) + 60).required()
-    });
-    
-    //Validate request body against schema.
-    const { error, value } = schema.validate(req.body);
-    if(error) {
-        return res.status(400).send({ error_message: error.details[0].message });
+  //Define schema for validating request body.
+  const schema = Joi.object({
+    name: Joi.string().max(100).required(),
+    description: Joi.string().max(1000).required(),
+    starting_bid: Joi.number().integer().positive().required(),
+    end_date: Joi.number()
+      .integer()
+      .min(Math.floor(Date.now() / 1000) + 60)
+      .required(),
+  });
+
+  //Validate request body against schema.
+  const { error, value } = schema.validate(req.body);
+  if (error) {
+    return res.status(400).send({ error_message: error.details[0].message });
+  }
+
+  const { name, description, starting_bid, end_date } = value;
+  const user_id = req.user_id; //get user ID from authenticated request.
+
+  //If validation passes, create the item.
+  coreModel.createItem(
+    user_id,
+    name,
+    description,
+    starting_bid,
+    end_date,
+    (err, result) => {
+      if (err) {
+        return res
+          .status(500)
+          .send({ error_message: "Database error creating item for sale" });
+      }
+      return res.status(201).send({ item_id: result.item_id });
     }
-
-    const { name, description, starting_bid, end_date } = value;
-    const user_id = req.user_id; //get user ID from authenticated request.
-
-    //If validation passes, create the item.
-    coreModel.createItem(user_id, name, description, starting_bid, end_date, (err, result) => {
-        if(err) {
-            return res.status(500).send({ error_message: "Database error creating item for sale" });
-        }
-        return res.status(201).send({ item_id: result.item_id });
-    });
+  );
 };
 
 /**
  * Retrieves details of a specific item, including current highest bid and bid holder.
  */
 const getItemDetails = (req, res) => {
-    const item_id = parseInt(req.params.item_id, 10);
-    if(isNaN(item_id)) {
-        return res.status(400).send({ error_message: "Invalid item ID" });
-    }
+  const item_id = parseInt(req.params.item_id, 10);
+  if (isNaN(item_id)) {
+    return res.status(400).send({ error_message: "Invalid item ID" });
+  }
 
-    coreModel.getItemById(item_id, (err, item) => {
-        if(err) {
-            return res.status(500).send({ error_message: "Database error retrieving item details" });
-        }
-        if(!item) {
-            return res.status(404).send({ error_message: "Item not found" });
-        }
-        coreModel.getBidHistory(item_id, (err2, bids) => {
-            if(err2) {
-                return res.status(500).send({ error_message: "Database error retrieving bid history" });
-            }
-            if(bids.length > 0) {
-                //Determine the current highest bid.
-                item.current_bid = bids[0].amount;
-                item.current_bid_holder = {
-                    user_id: bids[0].user_id,
-                    first_name: bids[0].first_name,
-                    last_name: bids[0].last_name
-                };
-            } else {
-                item.current_bid = item.starting_bid; //default to starting bid if no bids placed yet.
-                item.current_bid_holder = null; //no bids yet.
-            }
-        return res.status(200).send(item);
+  coreModel.getItemById(item_id, (err, item) => {
+    if (err) {
+      return res
+        .status(500)
+        .send({ error_message: "Database error retrieving item details" });
+    }
+    if (!item) {
+      return res.status(404).send({ error_message: "Item not found" });
+    }
+    coreModel.getBidHistory(item_id, (err2, bids) => {
+      if (err2) {
+        return res
+          .status(500)
+          .send({ error_message: "Database error retrieving bid history" });
+      }
+      if (bids.length > 0) {
+        //Determine the current highest bid.
+        item.current_bid = bids[0].amount;
+        item.current_bid_holder = {
+          user_id: bids[0].user_id,
+          first_name: bids[0].first_name,
+          last_name: bids[0].last_name,
+        };
+      } else {
+        item.current_bid = item.starting_bid; //default to starting bid if no bids placed yet.
+        item.current_bid_holder = null; //no bids yet.
+      }
+      return res.status(200).send(item);
     });
-    });
+  });
 };
 
 /**
@@ -77,150 +93,176 @@ const getItemDetails = (req, res) => {
  * Validation required user doesn't own item, auction hasn't ended and bid is higher than current highest.
  */
 const bidOnItem = (req, res) => {
-        const user_id = req.user_id;
-        const timestamp = Math.floor(Date.now() / 1000); // current timestamp in seconds would be needed to compare bid times.
-        const item_id = parseInt(req.params.item_id, 10);
+  const user_id = req.user_id;
+  const timestamp = Math.floor(Date.now() / 1000); // current timestamp in seconds would be needed to compare bid times.
+  const item_id = parseInt(req.params.item_id, 10);
 
-        if(isNaN(item_id)) {
-            return res.status(400).send({ error_message: "Invalid item ID" });
+  if (isNaN(item_id)) {
+    return res.status(400).send({ error_message: "Invalid item ID" });
+  }
+
+  //Validate bid amount schema.
+  const schema = Joi.object({
+    amount: Joi.number().integer().positive().required(),
+  });
+
+  //Validate request body against schema.
+  const { error, value } = schema.validate(req.body);
+  if (error) {
+    return res.status(400).send({ error_message: error.details[0].message });
+  }
+
+  const { amount } = value;
+
+  coreModel.getItemById(item_id, (err, item) => {
+    if (err) {
+      return res
+        .status(500)
+        .send({ error_message: "Database error retrieving item details" });
+    }
+    if (!item) {
+      return res.status(404).send({ error_message: "Item not found" });
+    }
+
+    //Check if user is trying to bid on their own item.
+    if (item.creator_id === user_id) {
+      return res
+        .status(403)
+        .send({ error_message: "Cannot bid on your own item" });
+    }
+    //Check if auction has ended or throw an error.
+    if (timestamp > item.end_date) {
+      return res
+        .status(400)
+        .send({ error_message: "Auction has already ended" });
+    }
+
+    //Get current highest bid for further validation.
+    coreModel.getBidHistory(item_id, (err2, bids) => {
+      if (err2) {
+        return res
+          .status(500)
+          .send({ error_message: "Database error retrieving bid history" });
+      }
+      //Validate that the new bid is higher than the current highest bid.
+      const highestBid = bids.length > 0 ? bids[0].amount : item.starting_bid;
+      if (amount <= highestBid) {
+        return res.status(400).send({ error_message: "Bid too low" });
+      }
+
+      //If validation passes, place the bid.
+      coreModel.placeBid(item_id, user_id, amount, timestamp, (err3) => {
+        if (err3) {
+          return res
+            .status(500)
+            .send({ error_message: "Database error placing bid" });
         }
-
-        //Validate bid amount schema.
-        const schema = Joi.object({
-            amount: Joi.number().integer().positive().required()
-        });
-
-        //Validate request body against schema.
-        const { error, value } = schema.validate(req.body);
-        if(error) {
-            return res.status(400).send({ error_message: error.details[0].message });
-        }
-
-        const { amount } = value;
-
-        coreModel.getItemById(item_id, (err, item) => {
-            if(err) {
-                return res.status(500).send({ error_message: "Database error retrieving item details" });
-            }
-            if(!item) {
-                return res.status(404).send({ error_message: "Item not found" });
-            }
-
-            //Check if user is trying to bid on their own item.
-            if(item.creator_id === user_id) {
-                return res.status(403).send({ error_message: "Cannot bid on your own item" });
-            }
-            //Check if auction has ended or throw an error.
-            if(timestamp > item.end_date) {
-                return res.status(400).send({ error_message: "Auction has already ended" });
-            }
-
-            //Get current highest bid for further validation.
-            coreModel.getBidHistory(item_id, (err2, bids) => {
-                if(err2) {
-                    return res.status(500).send({ error_message: "Database error retrieving bid history" });
-                }
-                //Validate that the new bid is higher than the current highest bid.
-                const highestBid = bids.length > 0 ? bids[0].amount : item.starting_bid;
-                if(amount <= highestBid) {
-                    return res.status(400).send({ error_message: "Bid too low" });
-                }
-
-                //If validation passes, place the bid.
-                coreModel.placeBid(item_id, user_id, amount, timestamp, (err3) => {
-                    if(err3) {
-                        return res.status(500).send({ error_message: "Database error placing bid" });
-                    }
-                    return res.status(201).send({ message: "Bid Received" });//is this spelt correctly compared to API Hub?
-                });
-            });
-        }
-    );
+        return res.status(201).send({ message: "Bid Received" }); //is this spelt correctly compared to API Hub?
+      });
+    });
+  });
 };
 
 /**
  * Retrieves complete bid history for a specific item.
  */
 const bidHistory = (req, res) => {
-    const item_id = parseInt(req.params.item_id, 10);
-    if(isNaN(item_id)) {
-        return res.status(400).send({ error_message: "Invalid item ID" });
+  const item_id = parseInt(req.params.item_id, 10);
+  if (isNaN(item_id)) {
+    return res.status(400).send({ error_message: "Invalid item ID" });
+  }
+  //Check if item exists before retrieving bid history.
+  coreModel.getItemById(item_id, (err, item) => {
+    if (err) {
+      return res
+        .status(500)
+        .send({ error_message: "Database error checking item" });
     }
-    //Check if item exists before retrieving bid history.
-    coreModel.getItemById(item_id, (err, item) => {
-        if(err) {
-            return res.status(500).send({ error_message: "Database error checking item" });
-        }
-        if(!item) {
-            return res.status(404).send({ error_message: "Item not found" });
-        }
+    if (!item) {
+      return res.status(404).send({ error_message: "Item not found" });
+    }
     //Only retrieve bid history if item exists.
     coreModel.getBidHistory(item_id, (err, bids) => {
-        if(err) {
-                return res.status(500).send({ error_message: "Database error retrieving bid history" });
-            }
-            return res.status(200).send(bids || []);
+      if (err) {
+        return res
+          .status(500)
+          .send({ error_message: "Database error retrieving bid history" });
+      }
+      return res.status(200).send(bids || []);
     });
-});
-}
+  });
+};
 
 /**
  * Searches items with optional filters and pagination.
  * Status filter requires authentication.
  */
 const itemSearch = (req, res) => {
-    const schema = Joi.object({
-        q: Joi.string().allow('',null), // search query string. A string used to filter the search end point (i.e., to find specific item)
-        status: Joi.string().valid('BID', 'OPEN', 'ARCHIVE'), // filter by auction status.
-        limit: Joi.number().integer().min(1).max(100).default(10), // number of results to return.
-        offset: Joi.number().integer().min(0).default(0) // number of items to skip before starting to collect the result set.
+  const schema = Joi.object({
+    q: Joi.string().allow("", null), // search query string. A string used to filter the search end point (i.e., to find specific item)
+    status: Joi.string().valid("BID", "OPEN", "ARCHIVE"), // filter by auction status.
+    limit: Joi.number().integer().min(1).max(100).default(30), // number of results to return.
+    offset: Joi.number().integer().min(0).default(0), // number of items to skip before starting to collect the result set.
+  });
+
+  const { error, value } = schema.validate(req.query);
+
+  if (error) {
+    return res.status(400).send({ error_message: error.details[0].message });
+  }
+
+  const { q, status, limit, offset } = value;
+
+  //Get user_id from token if provided (optional authentication)
+  const token = req.get("X-Authorization") || req.get("x-authorization");
+  //If status filter is used, authentication is required
+  if (status && !token) {
+    return res
+      .status(400)
+      .send({ error_message: "Authentication required to search for items" });
+  }
+
+  // If token is provided, get user_id from it
+  if (token) {
+    const userModel = require("../models/user.models");
+    userModel.getIdFromToken(token, (err, user_id) => {
+      if (err || !user_id) {
+        return res.status(401).send({ error_message: "Invalid session token" });
+      }
+      //Perform search with authenticated user_id
+      coreModel.searchItems(
+        q,
+        status,
+        user_id,
+        limit,
+        offset,
+        (err, results) => {
+          if (err) {
+            return res
+              .status(500)
+              .send({ error_message: "Database error performing search" });
+          }
+          return res.status(200).send(results);
+        }
+      );
     });
-
-    const { error, value } = schema.validate(req.query);
-
-    if(error) {
-        return res.status(400).send({ error_message: error.details[0].message });
-    }
-
-    const { q, status, limit, offset } = value;
-
-    //Get user_id from token if provided (optional authentication)
-    const token = req.get('X-Authorization') || req.get('x-authorization');
-    //If status filter is used, authentication is required
-    if(status && !token) {
-        return res.status(400).send({ error_message: "Authentication required to search for items" });
-    }
-
-    // If token is provided, get user_id from it
-    if(token) {
-        const userModel = require('../models/user.models');
-        userModel.getIdFromToken(token, (err, user_id) => {
-            if(err || !user_id) {
-                return res.status(401).send({ error_message: "Invalid session token" });
-            }
-            //Perform search with authenticated user_id
-            coreModel.searchItems(q, status, user_id, limit, offset, (err, results) => {
-                if(err) {
-                    return res.status(500).send({ error_message: "Database error performing search" });
-                }
-                return res.status(200).send(results);
-            });
-        });
-    } else {
-        //Perform search without user_id for unauthenticated requests
-        coreModel.searchItems(q, status, null, limit, offset, (err, results) => {
-            if(err) {
-                return res.status(500).send({ error_message: "Database error performing search" });
-            }
-            return res.status(200).send(results);
-        });
-    }
+  } else {
+    //Perform search without user_id for unauthenticated requests
+    coreModel.searchItems(q, status, null, limit, offset, (err, results) => {
+      if (err) {
+        return res
+          .status(500)
+          .send({ error_message: "Database error performing search" });
+      }
+      return res.status(200).send(results);
+    });
+  }
 };
 
 module.exports = {
-    createItem,
-    getItemDetails,
-    bidOnItem,
-    bidHistory,
-    itemSearch
+  createItem,
+  getItemDetails,
+  bidOnItem,
+  bidHistory,
+  itemSearch,
 };
