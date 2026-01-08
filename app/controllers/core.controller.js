@@ -77,26 +77,26 @@ const getItemDetails = (req, res) => {
  * Validation required user doesn't own item, auction hasn't ended and bid is higher than current highest.
  */
 const bidOnItem = (req, res) => {
-        const user_id = req.user_id;
-        const timestamp = Math.floor(Date.now() / 1000); // current timestamp in seconds would be needed to compare bid times.
-        const item_id = parseInt(req.params.item_id, 10);
+    const user_id = req.user_id;
+    const timestamp = Math.floor(Date.now() / 1000); // current timestamp in seconds would be needed to compare bid times.
+    const item_id = parseInt(req.params.item_id, 10);
 
-        if(isNaN(item_id)) {
-            return res.status(400).send({ error_message: "Invalid item ID" });
-        }
+    if(isNaN(item_id)) {
+        return res.status(400).send({ error_message: "Invalid item ID" });
+    }
 
-        //Validate bid amount schema.
-        const schema = Joi.object({
-            amount: Joi.number().integer().positive().required()
-        });
+    //Validate bid amount schema.
+    const schema = Joi.object({
+        amount: Joi.number().integer().positive().required()
+    });
 
-        //Validate request body against schema.
-        const { error, value } = schema.validate(req.body);
-        if(error) {
-            return res.status(400).send({ error_message: error.details[0].message });
-        }
+    //Validate request body against schema.
+    const { error, value } = schema.validate(req.body);
+    if(error) {
+        return res.status(400).send({ error_message: error.details[0].message });
+    }
 
-        const { amount } = value;
+    const { amount } = value;
 
         coreModel.getItemById(item_id, (err, item) => {
             if(err) {
@@ -172,7 +172,7 @@ const itemSearch = (req, res) => {
     const schema = Joi.object({
         q: Joi.string().allow('',null), // search query string. A string used to filter the search end point (i.e., to find specific item)
         status: Joi.string().valid('BID', 'OPEN', 'ARCHIVE'), // filter by auction status.
-        limit: Joi.number().integer().min(1).max(100).default(10), // number of results to return.
+        limit: Joi.number().integer().min(1).max(100).default(30), // number of results to return.
         offset: Joi.number().integer().min(0).default(0) // number of items to skip before starting to collect the result set.
     });
 
