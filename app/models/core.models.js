@@ -6,6 +6,8 @@ const db = require('../../database'); //imports the database connection.
  */
 const createItem = (creator_id, name, description, starting_bid, end_date, callback) => {
 
+    const start_date = Math.floor(Date.now() / 1000);
+
     const createItemQuery = `
         INSERT INTO items (creator_id, name, description, starting_bid, start_date, end_date)
         VALUES (?, ?, ?, ?, ?, ?)
