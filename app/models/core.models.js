@@ -5,7 +5,6 @@ const db = require('../../database'); //imports the database connection.
  * Automatically sets start_date to current timestamp.
  */
 const createItem = (creator_id, name, description, starting_bid, end_date, callback) => {
-    const start_date = Math.floor(Date.now() / 1000); // current timestamp in seconds, which is important in an auction system.
 
     const createItemQuery = `
         INSERT INTO items (creator_id, name, description, starting_bid, start_date, end_date)
@@ -96,7 +95,8 @@ const getBidHistory = (item_id, callback) => {
 const searchItems = (q, status, user_id, limit, offset, callback) => {
     //An initial implementation which can be mutated later.
     let baseQuery = `
-        SELECT i.item_id, i.name, i.description, i.end_date, i.creator_id, u.first_name, u.last_name
+        SELECT i.item_id, i.name, i.description, i.end_date, i.creator_id, u.first_name, u.last_name, 
+        (SELECT MAX(amount) FROM bids WHERE item_id = i.item_id) as current_bid
         FROM items i
         JOIN users u ON i.creator_id = u.user_id
     `;
